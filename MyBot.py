@@ -53,19 +53,25 @@ def DoTurn(pw):
     if source_num_ships > num_ships:
       pw.IssueOrder(source, dest, num_ships)
 
-  def my_attractiveness(planet):
-    my_planets = [(p, pw.Distance(p, planet)) for p in pw.MyPlanets()]
-    my_planets.sort(key=operator.itemgetter(1))
-    cumulutive_ships = 0
-    for (my_planet, distance) in my_planets:
-      cumulutive_ships += my_planet.NumShips()
-      if cumulutive_ships > planet.NumShips():
+  def my_attractiveness(planet, planet_list):
+    planets = [(p, pw.Distance(p, planet)) for p in planet_list]
+    planets.sort(key=operator.itemgetter(1))
+    cumulative_ships = 0
+    for (my_planet, distance) in planets:
+      cumulative_ships += my_planet.NumShips()
+      if cumulative_ships > planet.NumShips():
         return planet.GrowthRate() / ((50.0 + planet.NumShips()) * distance)
     else:
       return 0
 
+  my_planet_list = pw.MyPlanets()
+  enemy_planet_list = pw.EnemyPlanets()
 
-
+  diff_attr_list = []
+  for neutral_planet in pw.NeutralPlanets():
+    diff_attractiveness = (my_attractiveness(neutral_planet, my_planet_list) -
+      my_attractiveness(neutral_planet, enemy_planet_list))
+    diff_attr_list.append((diff_attractiveness, neutral_planet))
 
 def main():
   map_data = ''
