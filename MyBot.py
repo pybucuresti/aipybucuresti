@@ -48,13 +48,30 @@ def DoTurn(pw):
       dest_score = score
       dest = p.PlanetID()
 
-  def attractiveness(planet, planet_list):
+  def get_fleets_to_planet(planet, attacker):
+    '''
+    return (my_fleet, enemy_fleet)
+    '''
+    num_ships = 0
+    for fleet in pw.Fleets():
+      if fleet.DestinationPlanet() == planet:
+        if fleet.Owner()==attacker:
+          num_ships -= fleet.NumShips()
+        else:
+          num_ships += fleet.NumShips()
+    return num_ships
+
+  def attractiveness(planet, planet_list, attacker):
     planets = [(p, pw.Distance(p.PlanetID(), planet.PlanetID())) for p in planet_list]
     planets.sort(key=operator.itemgetter(1))
     cumulative_ships = 0
+    num_ships = planet.NumShips() + get_fleets_to_planet(planet, attacker)
+
+    if num_ships < 0:
+      return {'attr': 0, 'planets': planets}
     for i, (my_planet, distance) in enumerate(planets):
-      defences = planet.NumShips()
-      if planet.Owner() == 2:
+      defences = num_ships
+      if planet.Owner() not in [ attacker, 0 ]:
         defences += planet.GrowthRate() * distance
       num_ships = int(defences * 1.2)
       cumulative_ships += my_planet.NumShips() * aggressiveness
@@ -70,8 +87,8 @@ def DoTurn(pw):
 
   diff_attr_list = []
   for planet in pw.NotMyPlanets():
-    my = attractiveness(planet, my_planet_list)
-    enemy = attractiveness(planet, enemy_planet_list)
+    my = attractiveness(planet, my_planet_list, 1)
+    enemy = attractiveness(planet, enemy_planet_list, 2)
     diff_attractiveness = my['attr'] - enemy['attr']
     diff_attr_list.append((diff_attractiveness, planet, my['planets']))
 
