@@ -23,6 +23,7 @@ logger.addHandler(logging.FileHandler('log'))
 logger.setLevel(logging.DEBUG)
 
 def DoTurn(pw):
+  aggressiveness = 0.5
   # (1) If we currently have a fleet in flight, just do nothing.
   if len(pw.MyFleets()) >= 3:
     return
@@ -52,8 +53,12 @@ def DoTurn(pw):
     planets.sort(key=operator.itemgetter(1))
     cumulative_ships = 0
     for i, (my_planet, distance) in enumerate(planets):
-      cumulative_ships += my_planet.NumShips() * 3 / 4
-      if cumulative_ships > planet.NumShips():
+      defences = planet.NumShips()
+      if planet.Owner() == 2:
+        defences += planet.GrowthRate() * distance
+      num_ships = int(defences * 1.2)
+      cumulative_ships += my_planet.NumShips() * aggressiveness
+      if cumulative_ships > num_ships:
         return {'attr': planet.GrowthRate() / ((50.0 + planet.NumShips()) * distance),
                 'planets': planets[:i+1]}
     else:
@@ -79,14 +84,8 @@ def DoTurn(pw):
 
   # (4) Send half the ships from my strongest planet to the weakest
   # planet that I do not own.
-  dest_planet = pw.GetPlanet(dest)
-  defences = dest_planet.NumShips()
-  if dest_planet.Owner() == 2:
-    distance = pw.Distance(source, dest)
-    defences += dest_planet.GrowthRate() * distance
-  num_ships = int(defences * 1.1)
   for my_planet, distance in planets:
-    pw.IssueOrder(my_planet.PlanetID(), dest, my_planet.NumShips() * 3 / 4)
+    pw.IssueOrder(my_planet.PlanetID(), dest, my_planet.NumShips() * aggressiveness)
 
 
 def main():
