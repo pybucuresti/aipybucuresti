@@ -15,6 +15,7 @@
 """
 
 from PlanetWars import PlanetWars
+import operator
 
 def DoTurn(pw):
   # (1) If we currently have a fleet in flight, just do nothing.
@@ -42,6 +43,8 @@ def DoTurn(pw):
       dest_score = score
       dest = p.PlanetID()
 
+
+
   # (4) Send half the ships from my strongest planet to the weakest
   # planet that I do not own.
   if source >= 0 and dest >= 0:
@@ -49,6 +52,19 @@ def DoTurn(pw):
     num_ships = int(defences * 1.1)
     if source_num_ships > num_ships:
       pw.IssueOrder(source, dest, num_ships)
+
+  def my_attractiveness(planet):
+    my_planets = [(p, pw.Distance(p, planet)) for p in pw.MyPlanets()]
+    my_planets.sort(key=operator.itemgetter(1))
+    cumulutive_ships = 0
+    for (my_planet, distance) in my_planets:
+      cumulutive_ships += my_planet.NumShips()
+      if cumulutive_ships > planet.NumShips():
+        return planet.GrowthRate() / ((50.0 + planet.NumShips()) * distance)
+    else:
+      return 0
+
+
 
 
 def main():
