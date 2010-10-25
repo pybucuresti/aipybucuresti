@@ -45,8 +45,10 @@ def DoTurn(pw):
   # (4) Send half the ships from my strongest planet to the weakest
   # planet that I do not own.
   if source >= 0 and dest >= 0:
-    num_ships = source_num_ships / 2
-    pw.IssueOrder(source, dest, num_ships)
+    defences = pw.GetPlanet(dest).NumShips()
+    num_ships = int(defences * 1.1)
+    if source_num_ships > num_ships:
+      pw.IssueOrder(source, dest, num_ships)
 
 
 def main():
