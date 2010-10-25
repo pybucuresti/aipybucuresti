@@ -63,12 +63,11 @@ def DoTurn(pw):
 
 
   diff_attr_list = []
-  for neutral_planet in pw.NeutralPlanets():
+  for neutral_planet in pw.NotMyPlanets():
     diff_attractiveness = (my_attractiveness(neutral_planet, my_planet_list) -
       my_attractiveness(neutral_planet, enemy_planet_list))
     diff_attr_list.append((diff_attractiveness, neutral_planet))
 
-  logger.debug("%r", len(diff_attr_list))
   if not diff_attr_list:
     return
 
@@ -77,7 +76,11 @@ def DoTurn(pw):
   # (4) Send half the ships from my strongest planet to the weakest
   # planet that I do not own.
   if source >= 0 and dest >= 0:
-    defences = pw.GetPlanet(dest).NumShips()
+    dest_planet = pw.GetPlanet(dest)
+    defences = dest_planet.NumShips()
+    if dest_planet.Owner() == 2:
+      distance = pw.Distance(source, dest)
+      defences += dest_planet.GrowthRate() * distance
     num_ships = int(defences * 1.1)
     if source_num_ships > num_ships:
       pw.IssueOrder(source, dest, num_ships)
