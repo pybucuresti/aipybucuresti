@@ -47,43 +47,47 @@ def DoTurn(pw):
       dest_score = score
       dest = p.PlanetID()
 
-  def my_attractiveness(planet, planet_list):
+  def attractiveness(planet, planet_list):
     planets = [(p, pw.Distance(p.PlanetID(), planet.PlanetID())) for p in planet_list]
     planets.sort(key=operator.itemgetter(1))
     cumulative_ships = 0
-    for (my_planet, distance) in planets:
-      cumulative_ships += my_planet.NumShips()
+    for i, (my_planet, distance) in enumerate(planets):
+      cumulative_ships += my_planet.NumShips() * 3 / 4
       if cumulative_ships > planet.NumShips():
-        return planet.GrowthRate() / ((50.0 + planet.NumShips()) * distance)
+        return {'attr': planet.GrowthRate() / ((50.0 + planet.NumShips()) * distance),
+                'planets': planets[:i+1]}
     else:
-      return 0
+      return {'attr': 0, 'planets': planets}
 
   my_planet_list = pw.MyPlanets()
   enemy_planet_list = pw.EnemyPlanets()
 
 
   diff_attr_list = []
-  for neutral_planet in pw.NotMyPlanets():
-    diff_attractiveness = (my_attractiveness(neutral_planet, my_planet_list) -
-      my_attractiveness(neutral_planet, enemy_planet_list))
-    diff_attr_list.append((diff_attractiveness, neutral_planet))
+  for planet in pw.NotMyPlanets():
+    my = attractiveness(planet, my_planet_list)
+    enemy = attractiveness(planet, enemy_planet_list)
+    diff_attractiveness = my['attr'] - enemy['attr']
+    diff_attr_list.append((diff_attractiveness, planet, my['planets']))
 
   if not diff_attr_list:
     return
 
-  dest = max(diff_attr_list)[1].PlanetID() #most attractive
+  target_tup = max(diff_attr_list) #most attractive
+  dest = target_tup[1].PlanetID()
+  planets = target_tup[2]
 
   # (4) Send half the ships from my strongest planet to the weakest
   # planet that I do not own.
-  if source >= 0 and dest >= 0:
-    dest_planet = pw.GetPlanet(dest)
-    defences = dest_planet.NumShips()
-    if dest_planet.Owner() == 2:
-      distance = pw.Distance(source, dest)
-      defences += dest_planet.GrowthRate() * distance
-    num_ships = int(defences * 1.1)
-    if source_num_ships > num_ships:
-      pw.IssueOrder(source, dest, num_ships)
+  dest_planet = pw.GetPlanet(dest)
+  defences = dest_planet.NumShips()
+  if dest_planet.Owner() == 2:
+    distance = pw.Distance(source, dest)
+    defences += dest_planet.GrowthRate() * distance
+  num_ships = int(defences * 1.1)
+  for my_planet, distance in planets:
+    pw.IssueOrder(my_planet.PlanetID(), dest, my_planet.NumShips() * 3 / 4)
+
 
 def main():
   map_data = ''
