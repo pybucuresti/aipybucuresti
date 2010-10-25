@@ -16,6 +16,11 @@
 
 from PlanetWars import PlanetWars
 import operator
+import logging
+
+logger = logging.getLogger('planeta')
+logger.addHandler(logging.FileHandler('log'))
+logger.setLevel(logging.DEBUG)
 
 def DoTurn(pw):
   # (1) If we currently have a fleet in flight, just do nothing.
@@ -32,7 +37,6 @@ def DoTurn(pw):
       source_score = score
       source = p.PlanetID()
       source_num_ships = p.NumShips()
-
   # (3) Find the weakest enemy or neutral planet.
   dest = -1
   dest_score = -999999.0
@@ -43,18 +47,8 @@ def DoTurn(pw):
       dest_score = score
       dest = p.PlanetID()
 
-
-
-  # (4) Send half the ships from my strongest planet to the weakest
-  # planet that I do not own.
-  if source >= 0 and dest >= 0:
-    defences = pw.GetPlanet(dest).NumShips()
-    num_ships = int(defences * 1.1)
-    if source_num_ships > num_ships:
-      pw.IssueOrder(source, dest, num_ships)
-
   def my_attractiveness(planet, planet_list):
-    planets = [(p, pw.Distance(p, planet)) for p in planet_list]
+    planets = [(p, pw.Distance(p.PlanetID(), planet.PlanetID())) for p in planet_list]
     planets.sort(key=operator.itemgetter(1))
     cumulative_ships = 0
     for (my_planet, distance) in planets:
@@ -67,11 +61,26 @@ def DoTurn(pw):
   my_planet_list = pw.MyPlanets()
   enemy_planet_list = pw.EnemyPlanets()
 
+
   diff_attr_list = []
   for neutral_planet in pw.NeutralPlanets():
     diff_attractiveness = (my_attractiveness(neutral_planet, my_planet_list) -
       my_attractiveness(neutral_planet, enemy_planet_list))
     diff_attr_list.append((diff_attractiveness, neutral_planet))
+
+  logger.debug("%r", len(diff_attr_list))
+  if not diff_attr_list:
+    return
+
+  dest = max(diff_attr_list)[1].PlanetID() #most attractive
+
+  # (4) Send half the ships from my strongest planet to the weakest
+  # planet that I do not own.
+  if source >= 0 and dest >= 0:
+    defences = pw.GetPlanet(dest).NumShips()
+    num_ships = int(defences * 1.1)
+    if source_num_ships > num_ships:
+      pw.IssueOrder(source, dest, num_ships)
 
 def main():
   map_data = ''
@@ -79,7 +88,10 @@ def main():
     current_line = raw_input()
     if len(current_line) >= 2 and current_line.startswith("go"):
       pw = PlanetWars(map_data)
-      DoTurn(pw)
+      try:
+        DoTurn(pw)
+      except:
+        logger.exception("Something is Wrong")
       pw.FinishTurn()
       map_data = ''
     else:
