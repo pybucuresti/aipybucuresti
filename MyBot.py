@@ -24,29 +24,39 @@ logger.setLevel(logging.DEBUG)
 
 def DoTurn(pw):
   aggressiveness = 0.5
+  num_own_ships = 0
+  for pl in pw.MyPlanets():
+    num_own_ships += pl.NumShips()
+  num_neutral_ships = 0
+  for pl in pw.NeutralPlanets():
+    num_neutral_ships += pl.NumShips()
+  num_enemy_ships = 0
+  for pl in pw.EnemyPlanets():
+    num_enemy_ships += pl.NumShips()
+  adaptive_aggressiveness = 2 * num_own_ships / (num_neutral_ships + 2 * num_enemy_ships)
   # (1) If we currently have a fleet in flight, just do nothing.
-  if len(pw.MyFleets()) >= 3:
-    return
-  # (2) Find my strongest planet.
-  source = -1
-  source_score = -999999.0
-  source_num_ships = 0
-  my_planets = pw.MyPlanets()
-  for p in my_planets:
-    score = float(p.NumShips())
-    if score > source_score:
-      source_score = score
-      source = p.PlanetID()
-      source_num_ships = p.NumShips()
-  # (3) Find the weakest enemy or neutral planet.
-  dest = -1
-  dest_score = -999999.0
-  not_my_planets = pw.NotMyPlanets()
-  for p in not_my_planets:
-    score = 1.0 / (1 + p.NumShips())
-    if score > dest_score:
-      dest_score = score
-      dest = p.PlanetID()
+  #if len(pw.MyFleets()) >= 3:
+  #  return
+  ## (2) Find my strongest planet.
+  #source = -1
+  #source_score = -999999.0
+  #source_num_ships = 0
+  #my_planets = pw.MyPlanets()
+  #for p in my_planets:
+  #  score = float(p.NumShips())
+  #  if score > source_score:
+  #    source_score = score
+  #    source = p.PlanetID()
+  #    source_num_ships = p.NumShips()
+  ## (3) Find the weakest enemy or neutral planet.
+  #dest = -1
+  #dest_score = -999999.0
+  #not_my_planets = pw.NotMyPlanets()
+  #for p in not_my_planets:
+  #  score = 1.0 / (1 + p.NumShips())
+  #  if score > dest_score:
+  #    dest_score = score
+  #    dest = p.PlanetID()
 
   def get_fleets_to_planet(planet, attacker):
     '''
