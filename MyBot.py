@@ -60,7 +60,7 @@ def DoTurn(pw):
       if planet.Owner() not in [ attacker, 0 ]:
         defences += planet.GrowthRate() * distance
       num_ships = int(defences * 1.2)
-      cumulative_ships += my_planet.NumShips() * aggressiveness
+      cumulative_ships += my_planet.NumShips() * .5 # * aggressiveness
       if cumulative_ships > num_ships:
         return {'attr': planet.GrowthRate() / ((50.0 + planet.NumShips()) * distance),
                 'planets': planets[:i+1]}
@@ -74,9 +74,7 @@ def DoTurn(pw):
   diff_attr_list = []
   for planet in pw.NotMyPlanets():
     my = attractiveness(planet, my_planet_list, 1)
-    enemy = attractiveness(planet, enemy_planet_list, 2)
-    diff_attractiveness = my['attr'] - enemy['attr']
-    diff_attr_list.append((diff_attractiveness, planet, my['planets']))
+    diff_attr_list.append((my['attr'], planet, my['planets']))
 
   if not diff_attr_list:
     return
