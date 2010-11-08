@@ -51,12 +51,12 @@ def DoTurn(pw):
     planets = [(p, pw.Distance(p.PlanetID(), planet.PlanetID())) for p in planet_list]
     planets.sort(key=operator.itemgetter(1))
     cumulative_ships = 0
-    num_ships = planet.NumShips() + get_fleets_to_planet(planet, attacker)
+    num_ships = planet.NumShips() #+ get_fleets_to_planet(planet, attacker)
 
     if num_ships < 0:
       return {'attr': 0, 'planets': planets}
     for i, (my_planet, distance) in enumerate(planets):
-      defences = num_ships
+      defences = planet.NumShips()
       if planet.Owner() not in [ attacker, 0 ]:
         defences += planet.GrowthRate() * distance
       num_ships = int(defences * 1.2)
