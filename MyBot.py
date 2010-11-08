@@ -47,21 +47,40 @@ def DoTurn(pw):
           num_ships += fleet.NumShips()
     return num_ships
 
-  def attractiveness(planet, planet_list, attacker):
-    planets = [(p, pw.Distance(p.PlanetID(), planet.PlanetID())) for p in planet_list]
-    planets.sort(key=operator.itemgetter(1))
+  #def gravity_center(planets):
+  #  """ Calculate a point in our galactic empire with the gratest force """
+  #
+  #  for p1 in planets:
+  #    for p2 in planets:
+
+
+
+  def attractiveness(planet, planet_list, attacker=1):
+    """
+    Arguments:
+
+    planet -- target planet
+    planet_list -- sources
+    attacker -- 1
+
+    """
     cumulative_ships = 0
     num_ships = planet.NumShips() #+ get_fleets_to_planet(planet, attacker)
 
-    if num_ships < 0:
+    #Generate planet list sorted by distance
+    planets = [(p, pw.Distance(p.PlanetID(), planet.PlanetID())) for p in planet_list]
+    planets.sort(key=operator.itemgetter(1))
+
+    if num_ships < 0: #target planet ships
       return {'attr': 0, 'planets': planets}
     for i, (my_planet, distance) in enumerate(planets):
       defences = planet.NumShips()
-      if planet.Owner() not in [ attacker, 0 ]:
-        defences += planet.GrowthRate() * distance
-      num_ships = int(defences * 1.2)
+      if planet.Owner() not in [ attacker, 0 ]: #Enemy's planet
+        defences += planet.GrowthRate() * distance #How many ships are needed to get this planet
+
+      #Calculate closest planets that could send ships to the target
       cumulative_ships += my_planet.NumShips() * .5 # * aggressiveness
-      if cumulative_ships > num_ships:
+      if cumulative_ships > int(defences + 1):
         return {'attr': planet.GrowthRate() / ((50.0 + planet.NumShips()) * distance),
                 'planets': planets[:i+1]}
     else:
