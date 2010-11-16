@@ -14,18 +14,11 @@
 // http://www.ai-contest.com/resources.
 """
 
-from PlanetWars import PlanetWars
 import operator
-import logging
-from os import path
-
-log = logging.getLogger('planeta')
-log.addHandler(logging.FileHandler(path.join(path.dirname(__file__), 'ai.log')))
-log.setLevel(logging.DEBUG)
 
 turn = 0
 
-def DoTurn(pw):
+def DoTurn(log, pw):
     global turn
     turn += 1
     log.debug("===== turn %3d =====", turn)
@@ -75,31 +68,3 @@ def DoTurn(pw):
     # planet that I do not own.
     for my_planet, distance in planets:
         pw.IssueOrder(my_planet.PlanetID(), dest, my_planet.NumShips() * aggressiveness)
-
-
-def main():
-    map_data = ''
-    while(True):
-        current_line = raw_input()
-        if len(current_line) >= 2 and current_line.startswith("go"):
-            pw = PlanetWars(map_data)
-            try:
-                DoTurn(pw)
-            except:
-                log.exception("=======================================")
-            pw.FinishTurn()
-            map_data = ''
-        else:
-            map_data += current_line + '\n'
-
-
-if __name__ == '__main__':
-    try:
-        import psyco
-        psyco.full()
-    except ImportError:
-        pass
-    try:
-        main()
-    except KeyboardInterrupt:
-        print 'ctrl-c, leaving ...'
