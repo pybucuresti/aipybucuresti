@@ -1,40 +1,43 @@
-import math
+import logging
+log = logging.getLogger('aipybucuresti')
+log.setLevel(100) # disabled by default
 
-SWEET_GROWTH_RATE = 5
-ATTACK_FACTOR = 1.1
 
-def DoTurn(log, pw):
-    def in_flight(planet):
-        friendly, enemy = 0, 0
-        for fleet in pw.Fleets():
-            if fleet.DestinationPlanet() != planet.PlanetID():
-                continue
-            if fleet.Owner() == 1:
-                friendly += fleet.NumShips()
-            else:
-                enemy += fleet.NumShips()
-        return friendly, enemy
-
-    def distance(planet1, planet2):
-        return pw.Distance(planet1.PlanetID(), planet2.PlanetID())
-
-    def sweet(planet):
-        return (SWEET_GROWTH_RATE * planet.GrowthRate() - planet.NumShips())
-
-    for target in sorted((p for p in pw.NotMyPlanets()),
-                         key=sweet, reverse=True):
-        friendly, enemy = in_flight(target)
-        if friendly > target.NumShips():
-            continue
+def main():
+    import itertools
+    from PlanetWars import PlanetWars
+    from strategy import DoTurn
+    map_data = ''
+    turn_counter = itertools.count(1)
+    while True:
+        current_line = raw_input()
+        if len(current_line) >= 2 and current_line.startswith("go"):
+            turn = turn_counter.next()
+            pw = PlanetWars(map_data)
+            log.debug("===== turn %3d =====", turn)
+            DoTurn(log, pw)
+            pw.FinishTurn()
+            map_data = ''
         else:
-            break # found a target
-    else:
-        return # no target!
+            map_data += current_line + '\n'
 
-    max_ships = math.ceil(target.NumShips() * ATTACK_FACTOR)
-    for source in pw.MyPlanets():
-        if max_ships < 1:
-            break
-        howmany = min( (max_ships, source.NumShips()) )
-        pw.IssueOrder(source.PlanetID(), target.PlanetID(), howmany)
-        max_ships -= howmany
+
+if __name__ == '__main__':
+    import sys
+    if sys.argv[-1] == '--debug':
+        from os import path
+        log.setLevel(logging.DEBUG)
+        log_path = path.join(path.dirname(__file__), 'ai.log')
+        log.addHandler(logging.FileHandler(log_path))
+    try:
+        import psyco
+        psyco.full()
+    except ImportError:
+        pass
+    try:
+        try:
+            main()
+        except:
+            log.exception("=======================================")
+    except KeyboardInterrupt:
+        print 'ctrl-c, leaving ...'
