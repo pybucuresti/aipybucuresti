@@ -1,4 +1,7 @@
+import math
+
 SWEET_GROWTH_RATE = 5
+ATTACK_FACTOR = 1.1
 
 def DoTurn(log, pw):
     def in_flight(planet):
@@ -28,5 +31,10 @@ def DoTurn(log, pw):
     else:
         return # no target!
 
+    max_ships = math.ceil(target.NumShips() * ATTACK_FACTOR)
     for source in pw.MyPlanets():
-        pw.IssueOrder(source.PlanetID(), target.PlanetID(), source.NumShips())
+        if max_ships < 1:
+            break
+        howmany = min( (max_ships, source.NumShips()) )
+        pw.IssueOrder(source.PlanetID(), target.PlanetID(), howmany)
+        max_ships -= howmany
