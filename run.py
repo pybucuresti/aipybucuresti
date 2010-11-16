@@ -5,14 +5,17 @@ log.setLevel(logging.DEBUG)
 
 
 def main():
-    from itertools import count
+    import itertools
     from PlanetWars import PlanetWars
     from MyBot import DoTurn
     map_data = ''
+    turn_counter = itertools.count(1)
     while True:
         current_line = raw_input()
         if len(current_line) >= 2 and current_line.startswith("go"):
+            turn = turn_counter.next()
             pw = PlanetWars(map_data)
+            log.debug("===== turn %3d =====", turn)
             DoTurn(log, pw)
             pw.FinishTurn()
             map_data = ''
