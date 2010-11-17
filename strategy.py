@@ -29,12 +29,19 @@ def DoTurn(log, pw):
     sorted_fleets = sorted(pw.Fleets(), key=get_turns_remaining)
 
     def predict(planet):
+        # calculate who conquers this planet
         planet_owner = planet.Owner()
-        #turns = 0 # TODO: factor in planetary growth
+        turns = 0
         garrison = planet.NumShips()
         for fleet in sorted_fleets:
             if fleet.DestinationPlanet() != planet.PlanetID():
                 continue
+
+            if planet_owner != NEUTRAL: # calculate growth incrementally
+                turns_delta = fleet.TurnsRemaining() - turns
+                garrison += turns_delta * planet.GrowthRate()
+            turns = fleet.TurnsRemaining()
+
             if planet_owner == fleet.Owner():
                 garrison += fleet.NumShips() # planet is reinfoeced
             else:
@@ -43,7 +50,7 @@ def DoTurn(log, pw):
                 garrison = - garrison
                 planet_owner = fleet.Owner()
 
-        return (planet_owner, garrison)
+        return (planet_owner, garrison, turns)
 
     scoreboard = {
         'ship-delta': dict( (planet.PlanetID(), planet.NumShips())
@@ -63,6 +70,8 @@ def DoTurn(log, pw):
         scoreboard['conflict'][target.PlanetID()] = predict(target)
         scoreboard['ship-delta'][source.PlanetID()] -= num_ships
         pw.IssueOrder(source.PlanetID(), target.PlanetID(), num_ships)
+        log.info("attack from %d to %d with %d ships, distance is %d",
+                 source.PlanetID(), target.PlanetID(), num_ships, dist)
 
     for source in pw.MyPlanets():
         def sweet(target):
@@ -78,10 +87,16 @@ def DoTurn(log, pw):
 
         for target in sorted((p for p in pw.NotMyPlanets()),
                              key=sweet, reverse=True):
-            owner, garrison = scoreboard['conflict'][target.PlanetID()]
-            if owner == MYSELF:
+            future_owner, future_garrison, turns = \
+                    scoreboard['conflict'][target.PlanetID()]
+            if future_owner == MYSELF:
                 continue
 
-            attack_force = garrison + 1
+            dist = distance(source, target)
+            extra_growth = (dist - turns) * target.GrowthRate()
+            if future_owner == NEUTRAL or extra_growth < 0:
+                extra_growth = 0
+
+            attack_force = extra_growth + future_garrison + 1
             if scoreboard['ship-delta'][source.PlanetID()] > attack_force:
                 attack(source, target, attack_force)
