@@ -52,12 +52,16 @@ def DoTurn(log, pw):
 
         return (planet_owner, garrison, turns)
 
-    scoreboard = {
-        'ship-delta': dict( (planet.PlanetID(), planet.NumShips())
-                            for planet in pw.MyPlanets() ),
-        'conflict': dict( (planet.PlanetID(), predict(planet))
-                          for planet in pw.Planets() ),
-    }
+    def surplus(planet):
+        if scoreboard['conflict'][planet.PlanetID()][2] > 0:
+            return 0
+        return planet.NumShips()
+
+    scoreboard = {}
+    scoreboard['conflict'] = dict( (planet.PlanetID(), predict(planet))
+                                   for planet in pw.Planets() )
+    scoreboard['surplus'] = dict( (planet.PlanetID(), surplus(planet))
+                                  for planet in pw.MyPlanets() )
     from pprint import pformat
     log.info(pformat(scoreboard))
 
@@ -68,7 +72,7 @@ def DoTurn(log, pw):
         sorted_fleets.sort(key=get_turns_remaining)
         scoreboard['conflict'][source.PlanetID()] = predict(source)
         scoreboard['conflict'][target.PlanetID()] = predict(target)
-        scoreboard['ship-delta'][source.PlanetID()] -= num_ships
+        scoreboard['surplus'][source.PlanetID()] -= num_ships
         pw.IssueOrder(source.PlanetID(), target.PlanetID(), num_ships)
         log.info("attack from %d to %d with %d ships, distance is %d",
                  source.PlanetID(), target.PlanetID(), num_ships, dist)
@@ -98,5 +102,5 @@ def DoTurn(log, pw):
                 extra_growth = 0
 
             attack_force = extra_growth + future_garrison + 1
-            if scoreboard['ship-delta'][source.PlanetID()] > attack_force:
+            if scoreboard['surplus'][source.PlanetID()] > attack_force:
                 attack(source, target, attack_force)
