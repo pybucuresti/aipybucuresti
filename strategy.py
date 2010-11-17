@@ -1,8 +1,13 @@
+import PlanetWars
 import math
 
 DEFENCE_FACTOR = 1
 DISTANCE_FACTOR = 4
 ATTACK_FACTOR = 1.1
+
+NEUTRAL = 0
+MYSELF = 1
+ENEMY = 2
 
 def DoTurn(log, pw):
     def in_flight(planet):
@@ -19,6 +24,46 @@ def DoTurn(log, pw):
     def distance(planet1, planet2):
         return pw.Distance(planet1.PlanetID(), planet2.PlanetID())
 
+    get_turns_remaining = lambda f: f.TurnsRemaining()
+
+    sorted_fleets = sorted(pw.Fleets(), key=get_turns_remaining)
+
+    def predict(planet):
+        planet_owner = planet.Owner()
+        #turns = 0 # TODO: factor in planetary growth
+        garrison = planet.NumShips()
+        for fleet in sorted_fleets:
+            if fleet.DestinationPlanet() != planet.PlanetID():
+                continue
+            if planet_owner == fleet.Owner():
+                garrison += fleet.NumShips() # planet is reinfoeced
+            else:
+                garrison -= fleet.NumShips() # planet is attacked
+            if garrison < 0: # planet is conquered
+                garrison = - garrison
+                planet_owner = fleet.Owner()
+
+        return (planet_owner, garrison)
+
+    scoreboard = {
+        'ship-delta': dict( (planet.PlanetID(), planet.NumShips())
+                            for planet in pw.MyPlanets() ),
+        'conflict': dict( (planet.PlanetID(), predict(planet))
+                          for planet in pw.Planets() ),
+    }
+    from pprint import pformat
+    log.info(pformat(scoreboard))
+
+    def attack(source, target, num_ships):
+        dist = distance(source, target)
+        sorted_fleets.append(PlanetWars.Fleet(MYSELF, num_ships,
+                 source.PlanetID(), target.PlanetID(), dist, dist))
+        sorted_fleets.sort(key=get_turns_remaining)
+        scoreboard['conflict'][source.PlanetID()] = predict(source)
+        scoreboard['conflict'][target.PlanetID()] = predict(target)
+        scoreboard['ship-delta'][source.PlanetID()] -= num_ships
+        pw.IssueOrder(source.PlanetID(), target.PlanetID(), num_ships)
+
     for source in pw.MyPlanets():
         def sweet(target):
             f_growth = 10 * target.GrowthRate()
@@ -33,15 +78,10 @@ def DoTurn(log, pw):
 
         for target in sorted((p for p in pw.NotMyPlanets()),
                              key=sweet, reverse=True):
-            friendly, enemy = in_flight(target)
-            defence_force = target.NumShips() - friendly
-            if target.Owner() == 2:
-                defence_force += target.GrowthRate() * distance(source, target)
-            if defence_force < 0:
+            owner, garrison = scoreboard['conflict'][target.PlanetID()]
+            if owner == MYSELF:
                 continue
 
-            attack_force = math.ceil(defence_force * ATTACK_FACTOR)
-            if ships_left > attack_force:
-                pw.IssueOrder(source.PlanetID(), target.PlanetID(),
-                              attack_force)
-                ships_left -= attack_force
+            attack_force = garrison + 1
+            if scoreboard['ship-delta'][source.PlanetID()] > attack_force:
+                attack(source, target, attack_force)

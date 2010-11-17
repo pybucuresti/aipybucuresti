@@ -25,9 +25,10 @@ def main():
 if __name__ == '__main__':
     import sys
     if sys.argv[-1] == '--debug':
-        from os import path
+        import os
         log.setLevel(logging.DEBUG)
-        log_path = path.join(path.dirname(__file__), 'ai.log')
+        log_path = os.path.join(os.path.dirname(__file__), 'ai.log')
+        if os.path.isfile(log_path): os.unlink(log_path)
         log.addHandler(logging.FileHandler(log_path))
     try:
         import psyco
