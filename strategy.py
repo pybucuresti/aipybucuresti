@@ -24,6 +24,9 @@ def DoTurn(log, pw):
     def distance(planet1, planet2):
         return pw.Distance(planet1.PlanetID(), planet2.PlanetID())
 
+    def distance_to(planet):
+        return lambda other_planet: distance(planet, other_planet)
+
     get_turns_remaining = lambda f: f.TurnsRemaining()
 
     sorted_fleets = sorted(pw.Fleets(), key=get_turns_remaining)
@@ -54,8 +57,22 @@ def DoTurn(log, pw):
 
     def surplus(planet):
         if scoreboard['conflict'][planet.PlanetID()][2] > 0:
-            return 0
-        return planet.NumShips()
+            return 0 # ships inbound. approximate as "no surplus".
+        spare = garrison = planet.NumShips()
+        turns = 0
+        for other_planet in sorted(pw.Planets(), key=distance_to(planet))[1:]:
+            # skip the first one since it's `planet` (because distance = 0)
+            dist = distance(planet, other_planet)
+            garrison += (dist - turns) * planet.GrowthRate()
+            turns = dist
+            if other_planet.Owner() == ENEMY:
+                garrison -= other_planet.NumShips() # assume they attack
+                spare = min(spare, garrison)
+            elif other_planet.Owner() == MYSELF:
+                garrison += other_planet.NumShips() # assume we reinforce
+            if spare < 0:
+                break # panic!
+        return spare
 
     scoreboard = {}
     scoreboard['conflict'] = dict( (planet.PlanetID(), predict(planet))
@@ -73,6 +90,8 @@ def DoTurn(log, pw):
         scoreboard['conflict'][source.PlanetID()] = predict(source)
         scoreboard['conflict'][target.PlanetID()] = predict(target)
         scoreboard['surplus'][source.PlanetID()] -= num_ships
+        if target.Owner() == MYSELF:
+            scoreboard['surplus'][target.PlanetID()] = surplus(target)
         pw.IssueOrder(source.PlanetID(), target.PlanetID(), num_ships)
         log.info("attack from %d to %d with %d ships, distance is %d",
                  source.PlanetID(), target.PlanetID(), num_ships, dist)
