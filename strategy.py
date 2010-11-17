@@ -10,6 +10,15 @@ NEUTRAL = 0
 MYSELF = 1
 ENEMY = 2
 
+def memo(func):
+    results = {}
+    def wrapper(planet):
+        if planet.id not in results:
+            results[planet.id] = func(planet)
+        return results[planet.id]
+    wrapper.invalidate = lambda planet: results.pop(planet.id, None)
+    return wrapper
+
 def DoTurn(log, pw):
     for planet in pw.Planets():
         planet.id = planet.PlanetID()
@@ -35,8 +44,8 @@ def DoTurn(log, pw):
 
     sorted_fleets = sorted(pw.Fleets(), key=get_turns_remaining)
 
-    outcome = {}
-    def predict(planet):
+    @memo
+    def outcome(planet):
         # calculate who conquers this planet
         planet_owner = planet.Owner()
         turns = 0
@@ -58,16 +67,13 @@ def DoTurn(log, pw):
                 garrison = - garrison
                 planet_owner = fleet.Owner()
 
-        outcome[planet.id] = (planet_owner, garrison, turns)
+        return (planet_owner, garrison, turns)
 
-    for planet in pw.Planets():
-        predict(planet)
-
-    def compute_surplus(planet):
-        if outcome[planet.id][2] > 0:
+    @memo
+    def surplus(planet):
+        if outcome(planet)[2] > 0:
             return 0 # ships inbound. approximate as "no surplus".
-        spare = garrison = ( planet.NumShips() -
-                             departures[planet.id] )
+        spare = garrison = planet.NumShips() - departures[planet.id]
         turns = 0
         for other_planet in sorted(pw.Planets(), key=distance_to(planet))[1:]:
             # skip the first one since it's `planet` (because distance = 0)
@@ -83,7 +89,8 @@ def DoTurn(log, pw):
                 break # panic!
         return spare
 
-    def compute_danger(planet):
+    @memo
+    def danger(planet):
         total = 0
         for enemy_planet in pw.EnemyPlanets():
             total += enemy_planet.NumShips()
@@ -92,10 +99,6 @@ def DoTurn(log, pw):
         return total
 
     departures = dict( (planet.id, 0) for planet in pw.MyPlanets() )
-    surplus = dict( (planet.id, compute_surplus(planet))
-                    for planet in pw.MyPlanets() )
-    danger = dict( (planet.id, compute_danger(planet))
-                   for planet in pw.Planets() )
 
     def attack(source, target, num_ships):
         dist = distance(source, target)
@@ -103,12 +106,10 @@ def DoTurn(log, pw):
                  source.id, target.id, dist, dist))
         sorted_fleets.sort(key=get_turns_remaining)
         departures[source.id] += num_ships
-        predict(source)
-        predict(target)
-        surplus[source.id] -= num_ships
-        assert surplus[source.id] >= 0
-        if target.Owner() == MYSELF:
-            surplus[target.id] = compute_surplus(target)
+        outcome.invalidate(source)
+        outcome.invalidate(target)
+        surplus.invalidate(source)
+        assert surplus(source) >= 0
         pw.IssueOrder(source.id, target.id, num_ships)
         log.info("attack from %d to %d with %d ships, distance is %d",
                  source.id, target.id, num_ships, dist)
@@ -129,7 +130,7 @@ def DoTurn(log, pw):
             for target in sorted((p for p in pw.Planets()),
                                  key=sweet, reverse=True):
                 future_owner, future_garrison, turns = \
-                        outcome[target.id]
+                        outcome(target)
                 if future_owner == MYSELF:
                     continue
 
@@ -139,7 +140,7 @@ def DoTurn(log, pw):
                     extra_growth = 0
 
                 attack_force = extra_growth + future_garrison + 1
-                if surplus[source.id] > attack_force:
+                if surplus(source) > attack_force:
                     #attack(source, target, attack_force)
                     candidates.append( (dist, (source, target, attack_force)) )
 
@@ -151,15 +152,14 @@ def DoTurn(log, pw):
 
 #    # feed forward any remaining surplus
 #    for source in pw.MyPlanets():
-#        my_surplus = surplus[source.id]
+#        my_surplus = surplus(source)
 #        if my_surplus <= 0:
 #            continue
 #        for target in sorted(pw.Planets(), key=distance_to(source))[1:]:
 #            future_owner, future_garrison, turns = \
-#                    outcome[target.id]
+#                    outcome(target)
 #            if future_owner != MYSELF:
 #                continue
-#            if ( danger[target.id] >
-#                 danger[source.id] ):
+#            if danger(target) > danger(source):
 #                attack(source, target, my_surplus)
 #                break
