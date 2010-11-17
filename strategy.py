@@ -4,6 +4,8 @@ import math
 DEFENCE_FACTOR = 1
 DISTANCE_FACTOR = 4
 ATTACK_FACTOR = 1.1
+DANGER_GROWTH_FACTOR = 5
+DANGER_DISTANCE_FACTOR = 5
 
 NEUTRAL = 0
 MYSELF = 1
@@ -58,7 +60,8 @@ def DoTurn(log, pw):
     def surplus(planet):
         if scoreboard['conflict'][planet.PlanetID()][2] > 0:
             return 0 # ships inbound. approximate as "no surplus".
-        spare = garrison = planet.NumShips()
+        spare = garrison = ( planet.NumShips() -
+                             scoreboard['departing'][planet.PlanetID()] )
         turns = 0
         for other_planet in sorted(pw.Planets(), key=distance_to(planet))[1:]:
             # skip the first one since it's `planet` (because distance = 0)
@@ -74,11 +77,23 @@ def DoTurn(log, pw):
                 break # panic!
         return spare
 
+    def danger(planet):
+        total = 0
+        for enemy_planet in pw.EnemyPlanets():
+            total += enemy_planet.NumShips()
+            total += enemy_planet.GrowthRate() * DANGER_GROWTH_FACTOR
+            total -= distance(planet, enemy_planet) * DANGER_DISTANCE_FACTOR
+        return total
+
     scoreboard = {}
+    scoreboard['departing'] = dict( (planet.PlanetID(), 0)
+                                    for planet in pw.MyPlanets() )
     scoreboard['conflict'] = dict( (planet.PlanetID(), predict(planet))
                                    for planet in pw.Planets() )
     scoreboard['surplus'] = dict( (planet.PlanetID(), surplus(planet))
                                   for planet in pw.MyPlanets() )
+    scoreboard['danger'] = dict( (planet.PlanetID(), danger(planet))
+                                 for planet in pw.Planets() )
     from pprint import pformat
     log.info(pformat(scoreboard))
 
@@ -87,9 +102,11 @@ def DoTurn(log, pw):
         sorted_fleets.append(PlanetWars.Fleet(MYSELF, num_ships,
                  source.PlanetID(), target.PlanetID(), dist, dist))
         sorted_fleets.sort(key=get_turns_remaining)
+        scoreboard['departing'][source.PlanetID()] += num_ships
         scoreboard['conflict'][source.PlanetID()] = predict(source)
         scoreboard['conflict'][target.PlanetID()] = predict(target)
         scoreboard['surplus'][source.PlanetID()] -= num_ships
+        assert scoreboard['surplus'][source.PlanetID()] >= 0
         if target.Owner() == MYSELF:
             scoreboard['surplus'][target.PlanetID()] = surplus(target)
         pw.IssueOrder(source.PlanetID(), target.PlanetID(), num_ships)
@@ -108,8 +125,6 @@ def DoTurn(log, pw):
                     defence += target.GrowthRate() * distance(source, target)
                 f_defence = DEFENCE_FACTOR * defence
                 return f_growth - f_defence - f_distance
-
-            ships_left = source.NumShips()
 
             for target in sorted((p for p in pw.Planets()),
                                  key=sweet, reverse=True):
@@ -133,3 +148,18 @@ def DoTurn(log, pw):
 
         chosen = sorted(candidates)[0] # closest candidate
         attack(*chosen[1])
+
+#    # feed forward any remaining surplus
+#    for source in pw.MyPlanets():
+#        my_surplus = scoreboard['surplus'][source.PlanetID()]
+#        if my_surplus <= 0:
+#            continue
+#        for target in sorted(pw.Planets(), key=distance_to(source))[1:]:
+#            future_owner, future_garrison, turns = \
+#                    scoreboard['conflict'][target.PlanetID()]
+#            if future_owner != MYSELF:
+#                continue
+#            if ( scoreboard['danger'][target.PlanetID()] >
+#                 scoreboard['danger'][source.PlanetID()] ):
+#                attack(source, target, my_surplus)
+#                break
