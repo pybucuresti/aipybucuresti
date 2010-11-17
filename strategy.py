@@ -96,30 +96,40 @@ def DoTurn(log, pw):
         log.info("attack from %d to %d with %d ships, distance is %d",
                  source.PlanetID(), target.PlanetID(), num_ships, dist)
 
-    for source in pw.MyPlanets():
-        def sweet(target):
-            f_growth = 10 * target.GrowthRate()
-            f_distance = DISTANCE_FACTOR * distance(source, target)
-            defence = target.NumShips()
-            if target.Owner() == 2:
-                defence += target.GrowthRate() * distance(source, target)
-            f_defence = DEFENCE_FACTOR * defence
-            return f_growth - f_defence - f_distance
+    while True:
+        candidates = []
 
-        ships_left = source.NumShips()
+        for source in pw.MyPlanets():
+            def sweet(target):
+                f_growth = 10 * target.GrowthRate()
+                f_distance = DISTANCE_FACTOR * distance(source, target)
+                defence = target.NumShips()
+                if target.Owner() == 2:
+                    defence += target.GrowthRate() * distance(source, target)
+                f_defence = DEFENCE_FACTOR * defence
+                return f_growth - f_defence - f_distance
 
-        for target in sorted((p for p in pw.Planets()),
-                             key=sweet, reverse=True):
-            future_owner, future_garrison, turns = \
-                    scoreboard['conflict'][target.PlanetID()]
-            if future_owner == MYSELF:
-                continue
+            ships_left = source.NumShips()
 
-            dist = distance(source, target)
-            extra_growth = (dist - turns) * target.GrowthRate()
-            if future_owner == NEUTRAL or extra_growth < 0:
-                extra_growth = 0
+            for target in sorted((p for p in pw.Planets()),
+                                 key=sweet, reverse=True):
+                future_owner, future_garrison, turns = \
+                        scoreboard['conflict'][target.PlanetID()]
+                if future_owner == MYSELF:
+                    continue
 
-            attack_force = extra_growth + future_garrison + 1
-            if scoreboard['surplus'][source.PlanetID()] > attack_force:
-                attack(source, target, attack_force)
+                dist = distance(source, target)
+                extra_growth = (dist - turns) * target.GrowthRate()
+                if future_owner == NEUTRAL or extra_growth < 0:
+                    extra_growth = 0
+
+                attack_force = extra_growth + future_garrison + 1
+                if scoreboard['surplus'][source.PlanetID()] > attack_force:
+                    #attack(source, target, attack_force)
+                    candidates.append( (dist, (source, target, attack_force)) )
+
+        if not candidates:
+            break
+
+        chosen = sorted(candidates)[0] # closest candidate
+        attack(*chosen[1])
