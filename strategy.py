@@ -89,7 +89,7 @@ def DoTurn(log, pw):
 
         ships_left = source.NumShips()
 
-        for target in sorted((p for p in pw.NotMyPlanets()),
+        for target in sorted((p for p in pw.Planets()),
                              key=sweet, reverse=True):
             future_owner, future_garrison, turns = \
                     scoreboard['conflict'][target.PlanetID()]
