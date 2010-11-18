@@ -123,6 +123,18 @@ def DoTurn(log, pw):
         log.info("attack from %d to %d with %d ships, distance is %d",
                  source.id, target.id, num_ships, dist)
 
+    for target in pw.MyPlanets():
+        future_owner, future_garrison, turns, limit = outcome(target)
+        if limit < 0: # needs help
+            needed = min(-limit + 1, future_garrison)
+            for source in sorted(pw.MyPlanets(), key=distance_to(target))[1:]:
+                to_send = min(needed, surplus(source))
+                if to_send > 0:
+                    attack(source, target, to_send)
+                    needed -= to_send
+                if needed <= 0:
+                    break
+
     while True:
         candidates = []
 
