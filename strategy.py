@@ -170,15 +170,15 @@ def DoTurn(log, pw):
         chosen = sorted(candidates)[0] # closest candidate
         attack(*chosen[1])
 
-#    # feed forward any remaining surplus
-#    for source in pw.MyPlanets():
-#        my_surplus = surplus(source)
-#        if my_surplus <= 0:
-#            continue
-#        for target in sorted(pw.Planets(), key=distance_to(source))[1:]:
-#            future_owner, future_garrison, turns, limit = outcome(target)
-#            if future_owner != MYSELF:
-#                continue
-#            if danger(target) > danger(source):
-#                attack(source, target, my_surplus)
-#                break
+    # feed forward any remaining surplus
+    for source in pw.MyPlanets():
+        my_surplus = surplus(source)
+        if my_surplus <= 0:
+            continue
+        for target in sorted(pw.Planets(), key=distance_to(source))[1:]:
+            future_owner, future_garrison, turns, limit = outcome(target)
+            if future_owner != MYSELF:
+                continue
+            if danger(target) > danger(source):
+                attack(source, target, my_surplus)
+                break
