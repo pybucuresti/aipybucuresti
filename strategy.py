@@ -109,6 +109,24 @@ def DoTurn(log, pw):
 
     departures = dict( (planet.id, 0) for planet in pw.MyPlanets() )
 
+    def potential_defense(target, turns):
+        total = target.NumShips()
+        if target.Owner() == ENEMY:
+            total += turns * target.GrowthRate()
+        for planet in pw.NotMyPlanets():
+            if planet.id == target.id:
+                continue
+            dist = distance(planet, target)
+            if dist < turns:
+                planet_can_send = planet.NumShips()
+                planet_can_send += planet.GrowthRate() * (turns - dist - 1)
+                for fleet in pw.Fleets():
+                    if fleet.DestinationPlanet() == planet.id:
+                        if fleet.TurnsRemaining() < (turns - dist):
+                            planet_can_send += fleet.NumShips()
+                total += planet_can_send
+        return total + 1
+
     def attack(source, target, num_ships):
         dist = distance(source, target)
         sorted_fleets.append(PlanetWars.Fleet(MYSELF, num_ships,
@@ -147,6 +165,7 @@ def DoTurn(log, pw):
                     defence += target.GrowthRate() * distance(source, target)
                 f_defence = SWEET_DEFENCE_FACTOR * defence
                 return (f_growth - f_defence) / (1 + f_distance)
+                # TODO include potential_defense(target, dist)
 
             for target in sorted((p for p in pw.Planets()),
                                  key=sweet, reverse=True):
