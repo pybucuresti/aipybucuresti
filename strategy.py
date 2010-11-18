@@ -50,6 +50,9 @@ def DoTurn(log, pw):
         planet_owner = planet.Owner()
         turns = 0
         garrison = planet.NumShips()
+        limit = None
+        if planet_owner == MYSELF:
+            limit = garrison
         for fleet in sorted_fleets:
             if fleet.DestinationPlanet() != planet.id:
                 continue
@@ -64,16 +67,22 @@ def DoTurn(log, pw):
             else:
                 garrison -= fleet.NumShips() # planet is attacked
             if garrison < 0: # planet is conquered
+                if limit > 0:
+                    limit = garrison # which is negative
                 garrison = - garrison
                 planet_owner = fleet.Owner()
+            else:
+                limit = min(limit, garrison)
 
-        return (planet_owner, garrison, turns)
+        return (planet_owner, garrison, turns, limit)
 
     @memo
     def surplus(planet):
+        garrison = planet.NumShips() - departures[planet.id]
         if outcome(planet)[2] > 0:
-            return 0 # ships inbound. approximate as "no surplus".
-        spare = garrison = planet.NumShips() - departures[planet.id]
+            spare = min(max(outcome(planet)[3], 0), garrison)
+        else:
+            spare = garrison
         turns = 0
         for other_planet in sorted(pw.Planets(), key=distance_to(planet))[1:]:
             # skip the first one since it's `planet` (because distance = 0)
@@ -125,12 +134,11 @@ def DoTurn(log, pw):
                 if target.Owner() == 2:
                     defence += target.GrowthRate() * distance(source, target)
                 f_defence = SWEET_DEFENCE_FACTOR * defence
-                return f_growth - f_defence - f_distance
+                return (f_growth - f_defence) / (1 + f_distance)
 
             for target in sorted((p for p in pw.Planets()),
                                  key=sweet, reverse=True):
-                future_owner, future_garrison, turns = \
-                        outcome(target)
+                future_owner, future_garrison, turns, limit = outcome(target)
                 if future_owner == MYSELF:
                     continue
 
@@ -156,8 +164,7 @@ def DoTurn(log, pw):
 #        if my_surplus <= 0:
 #            continue
 #        for target in sorted(pw.Planets(), key=distance_to(source))[1:]:
-#            future_owner, future_garrison, turns = \
-#                    outcome(target)
+#            future_owner, future_garrison, turns, limit = outcome(target)
 #            if future_owner != MYSELF:
 #                continue
 #            if danger(target) > danger(source):
