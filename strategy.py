@@ -1,10 +1,11 @@
 import PlanetWars
 import math
 
-SWEET_DEFENCE_FACTOR = 1
-SWEET_DISTANCE_FACTOR = 4
 DANGER_GROWTH_FACTOR = 5
 DANGER_DISTANCE_FACTOR = 5
+
+JUICY_DISTANCE = 0.2
+JUICY_COST = 5.0
 
 NEUTRAL = 0
 MYSELF = 1
@@ -96,7 +97,7 @@ def DoTurn(log, pw):
                 garrison += other_planet.NumShips() # assume we reinforce
             if spare < 0:
                 break # panic!
-        return spare
+        return max(spare, 0)
 
     @memo
     def danger(planet):
@@ -141,6 +142,7 @@ def DoTurn(log, pw):
         log.info("attack from %d to %d with %d ships, distance is %d",
                  source.id, target.id, num_ships, dist)
 
+    # calculate who needs help
     for target in pw.MyPlanets():
         future_owner, future_garrison, turns, limit = outcome(target)
         if limit < 0: # needs help
@@ -153,41 +155,49 @@ def DoTurn(log, pw):
                 if needed <= 0:
                     break
 
-    while True:
-        candidates = []
+    total_surplus = sum(map(surplus, pw.MyPlanets()))
+    if not total_surplus > 0:
+        return
 
-        for source in pw.MyPlanets():
-            def sweet(target):
-                f_growth = 10 * target.GrowthRate()
-                f_distance = SWEET_DISTANCE_FACTOR * distance(source, target)
-                defence = target.NumShips()
-                if target.Owner() == 2:
-                    defence += target.GrowthRate() * distance(source, target)
-                f_defence = SWEET_DEFENCE_FACTOR * defence
-                return (f_growth - f_defence) / (1 + f_distance)
-                # TODO include potential_defense(target, dist)
+    def juicy(target):
+        mean_distance = ( sum( p.GrowthRate() * distance(p, target)
+                               for p in pw.MyPlanets() )
+                          / float(len(pw.MyPlanets())) )
 
-            for target in sorted((p for p in pw.Planets()),
-                                 key=sweet, reverse=True):
-                future_owner, future_garrison, turns, limit = outcome(target)
-                if future_owner == MYSELF:
-                    continue
+        pd = float(potential_defense(target, int(mean_distance)))
+        cost_factor = float(target.NumShips()) / total_surplus
 
-                dist = distance(source, target)
-                extra_growth = (dist - turns) * target.GrowthRate()
-                if future_owner == NEUTRAL or extra_growth < 0:
-                    extra_growth = 0
+        return ( target.GrowthRate()
+               - mean_distance * JUICY_DISTANCE
+               - cost_factor * JUICY_COST )
 
-                attack_force = extra_growth + future_garrison + 1
-                if surplus(source) > attack_force:
-                    #attack(source, target, attack_force)
-                    candidates.append( (dist, (source, target, attack_force)) )
+    # calculate what we want to attack
+    for target in sorted(pw.NotMyPlanets(), key=juicy, reverse=True):
+        future_owner, future_garrison, turns, limit = outcome(target)
+        if future_owner == MYSELF:
+            continue
 
-        if not candidates:
-            break
+        army = []
+        army_size = 0
+        for source in sorted(pw.MyPlanets(), key=distance_to(target)):
+            if not surplus(source) > 0:
+                continue
+            army.append(source)
+            army_size += surplus(source)
 
-        chosen = sorted(candidates)[0] # closest candidate
-        attack(*chosen[1])
+            dist = distance(source, target)
+            extra_growth = (dist - turns) * target.GrowthRate()
+            if future_owner == NEUTRAL or extra_growth < 0:
+                extra_growth = 0
+            needed = extra_growth + future_garrison + 1
+
+            if army_size >= needed:
+                for source in army:
+                    num_ships = min(needed, surplus(source))
+                    attack(source, target, num_ships)
+                    needed -= num_ships
+                assert needed == 0
+                break
 
     # feed forward any remaining surplus
     for source in pw.MyPlanets():
