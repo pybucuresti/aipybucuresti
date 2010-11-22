@@ -1,6 +1,9 @@
 import PlanetWars
 import math
 from itertools import groupby
+from collections import namedtuple
+
+Event = namedtuple('Event', 'owner num_ships turn')
 
 DANGER_GROWTH_FACTOR = 5
 DANGER_DISTANCE_FACTOR = 5
@@ -48,7 +51,7 @@ def DoTurn(log, pw):
             key=lambda f: f.TurnsRemaining())
         num_ships = planet.NumShips()
         owner = planet.Owner()
-        event_log = [(owner, num_ships, 0)] #Owner, NumShip
+        event_log = [Event(owner, num_ships, 0)] #Owner, NumShip
         turn = 0
         for fleet_turn, fleets in groupby(fleets, key=lambda f: f.TurnsRemaining()):
             if owner != NEUTRAL:
@@ -63,7 +66,7 @@ def DoTurn(log, pw):
                 if num_ships < 0:
                     owner = fleet.Owner()
                     num_ships = -num_ships
-            event_log.append((owner, num_ships, fleet_turn,))
+            event_log.append(Event(owner, num_ships, fleet_turn,))
         return event_log
 
     @memo
