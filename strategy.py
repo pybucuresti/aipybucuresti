@@ -74,9 +74,9 @@ def DoTurn(log, pw):
         events = predict_planet(planet)
         min_surplus = planet.NumShips()
         for event in events:
-            if event[0] != planet.Owner():
+            if event.owner != planet.Owner():
                 return 0 
-            min_surplus = min(min_surplus, event[1])
+            min_surplus = min(min_surplus, event.num_ships)
         return min_surplus
 
     def try_conquer(target_planet):
@@ -84,18 +84,24 @@ def DoTurn(log, pw):
         my_planets = sorted(pw.MyPlanets(), key=lambda p: pw.Distance(target_planet.id, p.id))
         num_ships = 0
         ret = []
+        target_ships = events[-1].num_ships + 1
+        target_turn = events[-1].turn
         for p in my_planets:
+            distance = pw.Distance(p.id, target_planet.id)
+            if target_turn < distance:
+                target_ships += target_planet.GrowthRate() * (distance - target_turn)
+                target_turn = distance
             the_surplus = surplus(p)
             num_ships += the_surplus
             if the_surplus:
                 ret.append(p)
-            if num_ships > events[-1][1]:
+            if num_ships >= target_ships:
                 return ret
         return None
      
     for planet in desirable_planets():
         event = predict_planet(planet)[-1]
-        if event[0] == MYSELF:
+        if event.owner == MYSELF:
             continue
         conquer = try_conquer(planet)
         if conquer is None:
