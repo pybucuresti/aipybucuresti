@@ -37,6 +37,7 @@ class Fleet:
 class Planet:
   def __init__(self, planet_id, owner, num_ships, growth_rate, x, y):
     self._planet_id = planet_id
+    self.id = planet_id
     self._owner = owner
     self._num_ships = num_ships
     self._growth_rate = growth_rate
