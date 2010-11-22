@@ -40,6 +40,7 @@ def DoTurn(log, pw):
             key=lambda p: p.GrowthRate() ** 2 / (p.NumShips() + 1.0) / average_distance(p), reverse=True)
         return planets
 
+    @memo
     def predict_planet(planet):
         """ Return number of turns until change owner """
 
@@ -52,6 +53,7 @@ def DoTurn(log, pw):
         for fleet_turn, fleets in groupby(fleets, key=lambda f: f.TurnsRemaining()):
             if owner != NEUTRAL:
                 num_ships += (fleet_turn - turn) * planet.GrowthRate()
+            turn = fleet_turn
 
             for fleet in fleets:
                 if fleet.Owner() != owner:
@@ -64,6 +66,7 @@ def DoTurn(log, pw):
             event_log.append((owner, num_ships, fleet_turn,))
         return event_log
 
+    @memo
     def surplus(planet):
         events = predict_planet(planet)
         min_surplus = planet.NumShips()
