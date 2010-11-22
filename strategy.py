@@ -29,9 +29,15 @@ def DoTurn(log, pw):
     def distance_to(planet):
         return lambda other_planet: distance(planet, other_planet)
 
+    def average_distance(planet):
+        try:
+            return sum(pw.Distance(planet.id, p.id) for p in pw.MyPlanets()) / len(pw.MyPlanets())
+        except:
+            return 1
+
     def desirable_planets():
         planets = sorted(pw.NotMyPlanets(),
-            key=lambda p: p.GrowthRate() / (p.NumShips() + 1.0), reverse=True)
+            key=lambda p: p.GrowthRate() ** 2 / (p.NumShips() + 1.0) / average_distance(p), reverse=True)
         return planets
 
     def predict_planet(planet):
@@ -54,16 +60,31 @@ def DoTurn(log, pw):
                     num_ships += fleet.NumShips()
                 if num_ships < 0:
                     owner = fleet.Owner()
-                    num_ships = -1 * num_ships
+                    num_ships = -num_ships
             event_log.append((owner, num_ships, fleet_turn,))
         return event_log
+
+    def try_conquer(target_planet):
+        events = predict_planet(target_planet)
+        my_planets = sorted(pw.MyPlanets(), key=lambda p: pw.Distance(target_planet.id, p.id))
+        num_ships = 0
+        ret = []
+        for p in my_planets:
+            num_ships += p.NumShips()
+            ret.append(p)
+            if num_ships > events[-1][1]:
+                return ret
+        return None
 
     for planet in desirable_planets():
         event = predict_planet(planet)[-1]
         if event[0] == MYSELF:
             continue
-        for my_planet in pw.MyPlanets():
-            num_ships = my_planet.NumShips()/2
+        conquer = try_conquer(planet)
+        if conquer is None:
+            continue
+        for my_planet in conquer:
+            num_ships = my_planet.NumShips()
             log.info('attacking %d from %d with %d', planet.id, my_planet.id, num_ships)
             pw.IssueOrder(my_planet.id, planet.id, num_ships)
         return
