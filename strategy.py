@@ -64,18 +64,29 @@ def DoTurn(log, pw):
             event_log.append((owner, num_ships, fleet_turn,))
         return event_log
 
+    def surplus(planet):
+        events = predict_planet(planet)
+        min_surplus = planet.NumShips()
+        for event in events:
+            if event[0] != planet.Owner():
+                return 0 
+            min_surplus = min(min_surplus, event[1])
+        return min_surplus
+
     def try_conquer(target_planet):
         events = predict_planet(target_planet)
         my_planets = sorted(pw.MyPlanets(), key=lambda p: pw.Distance(target_planet.id, p.id))
         num_ships = 0
         ret = []
         for p in my_planets:
-            num_ships += p.NumShips()
-            ret.append(p)
+            the_surplus = surplus(p)
+            num_ships += the_surplus
+            if the_surplus:
+                ret.append(p)
             if num_ships > events[-1][1]:
                 return ret
         return None
-
+     
     for planet in desirable_planets():
         event = predict_planet(planet)[-1]
         if event[0] == MYSELF:
@@ -84,7 +95,7 @@ def DoTurn(log, pw):
         if conquer is None:
             continue
         for my_planet in conquer:
-            num_ships = my_planet.NumShips()
+            num_ships = surplus(my_planet) 
             log.info('attacking %d from %d with %d', planet.id, my_planet.id, num_ships)
             pw.IssueOrder(my_planet.id, planet.id, num_ships)
         return
