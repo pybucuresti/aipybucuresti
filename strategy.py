@@ -28,10 +28,15 @@ def DoTurn(log, pw):
     def distance_to(planet):
         return lambda other_planet: distance(planet, other_planet)
 
-    for fleet in pw.MyFleets():
+    def desirable_planets():
+        planets = sorted(pw.NotMyPlanets(), key=lambda p: p.GrowthRate() / (p.NumShips() + 1.0), reverse=True)
+        return planets
+
+    target = desirable_planets()[0]
+    try:
+        source = random.choice(pw.MyPlanets())
+    except IndexError:
         return
-    target = random.choice(pw.NotMyPlanets())
-    source = random.choice(pw.MyPlanets())
     num_ships = random.randint(1, source.NumShips())
     log.info('attacking %d from %d with %d', target.id, source.id, num_ships)
     pw.IssueOrder(source.id, target.id, num_ships)
