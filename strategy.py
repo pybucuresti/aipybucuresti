@@ -15,6 +15,8 @@ NEUTRAL = 0
 MYSELF = 1
 ENEMY = 2
 
+TURN = 0
+
 def memo(func):
     results = {}
     def wrapper(planet):
@@ -26,6 +28,13 @@ def memo(func):
 
 def DoTurn(log, pw):
     import random
+    global TURN
+    TURN += 1
+    if TURN == 1:
+        global my_home_planet
+        global enemy_home_planet
+        my_home_planet = pw.MyPlanets()[0]
+        enemy_home_planet = pw.EnemyPlanets()[0]
     def distance(planet1, planet2):
         return pw.Distance(planet1.id, planet2.id)
 
@@ -71,6 +80,9 @@ def DoTurn(log, pw):
 
     @memo
     def surplus(planet):
+        if TURN ==1:
+            initial_distance = pw.Distance(my_home_planet.id, enemy_home_planet.id)
+            return min(initial_distance * my_home_planet.GrowthRate(), my_home_planet.NumShips())
         events = predict_planet(planet)
         min_surplus = planet.NumShips()
         for event in events:
@@ -98,7 +110,7 @@ def DoTurn(log, pw):
             if num_ships >= target_ships:
                 return ret
         return None
-     
+    
     for planet in desirable_planets():
         event = predict_planet(planet)[-1]
         if event.owner == MYSELF:
